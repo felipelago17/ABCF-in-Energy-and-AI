@@ -36,14 +36,41 @@ valuable as new frameworks.
 - **Translations & localization** — ABCF frameworks adapted for non-English
   jurisdictions, with source citations in the original language.
 
+## What we do *not* accept
+
+- **Confidential or proprietary information** — client-specific assessments,
+  non-public settlements or investigations, proprietary tools.
+- **Legal advice** — this repository is informational, not counsel; no
+  situation- or jurisdiction-specific opinions.
+- **Vendor promotion** — no marketing of compliance software/services, no
+  affiliate links.
+- **Unsubstantiated claims** — enforcement facts must cite a primary source;
+  no speculation about open investigations.
+- **Harmful content** — no instructions for committing bribery, laundering, or
+  evading detection.
+
 ## How to contribute
 
 ### Issues
 Use the Issue templates:
-- **Enforcement tracking** — log a new enforcement action or guidance release.
+- **Enforcement tracking** — log a new enforcement action (with the analytical
+  fields for governance-network and transaction-cost reading).
+- **Regulatory guidance & standards update** — track guidance, standards
+  revisions, and ISO 37001 developments.
 - **Framework request** — propose a new framework, checklist, or risk tool.
-- **Case submission** — propose a new case study or a correction to an existing
-  one.
+- **Case submission / correction** — propose a new case study or correct an
+  existing one.
+
+Note: an [automated monitor](docs/AUTOMATION.md) may open `needs-verification`
+enforcement issues. These are **unverified leads** — confirm each against its
+primary source before it graduates into a cited `case-studies/` entry.
+
+### Labels
+- **Authority:** `doj`, `sec`, `fca`, `sfo`, `dfsa`
+- **Type:** `enforcement-monitoring`, `guidance`, `regulatory-update`, `needs-verification`, `automated`
+- **Sector:** `energy`, `technology`, `finance`, `defense`, `infrastructure`
+- **Framework:** `polycentric-governance`, `transaction-cost-analysis`, `institutional-analysis`, `governance`
+- **Activity:** `case-study`, `framework`, `research`
 
 ### Pull requests
 1. Fork and branch from the default branch. Use a descriptive branch name
@@ -74,6 +101,12 @@ A smaller, correct repository beats a large, wrong one. When in doubt, mark a
 claim as unverified and open an Issue rather than asserting it. The
 [case-studies README](case-studies/README.md) lists commonly-misattributed
 matters — please help keep that list current.
+
+## Attribution & credit
+
+Contributors are credited by contribution type and, where offered, linked to a
+GitHub profile or professional affiliation. Say in your PR how you'd like to be
+credited (or if you'd prefer not to be).
 
 ## Code of conduct
 

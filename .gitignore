@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Transient artifacts produced by the enforcement monitor at runtime.
+# The registry (data/enforcement_registry.json) and ENFORCEMENT_SUMMARY.md are
+# intentionally committed by the workflow; the per-source scratch files are not.
+doj_fcpa_enforcement.json
+sec_fcpa_enforcement.json
+uk_bribery_enforcement.json
+iso37001_updates.json
+enforcement_summary.json
+guidance_updates.json
+
+# OS / editor
+.DS_Store
+*.swp

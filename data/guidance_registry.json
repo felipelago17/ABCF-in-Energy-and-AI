@@ -1,0 +1,10 @@
+{
+  "created": "2026-07-03",
+  "last_updated": "2026-07-03",
+  "total_items": 0,
+  "note": "Machine-maintained registry of ABCF regulatory-guidance candidates (DOJ/SEC, FCA/SFO, ISO 37001, EITI, UNCAC, OECD). Items carry needs_review:true until verified against the issuing authority.",
+  "items": [],
+  "summary_stats": {
+    "by_standard": {}
+  }
+}

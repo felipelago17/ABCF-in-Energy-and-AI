@@ -248,7 +248,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for submission guidelines.
 
 ## Repository Maintenance
 
-- **Enforcement monitoring**: A scheduled GitHub Action opens a tracking Issue on a weekly cadence (see [`.github/workflows/fcpa-sec-monitor.yml`](.github/workflows/fcpa-sec-monitor.yml)).
+- **Enforcement monitoring**: A scheduled GitHub Action ([`.github/workflows/fcpa-sec-monitor.yml`](.github/workflows/fcpa-sec-monitor.yml)) sweeps DOJ/SEC/SFO and guidance sources twice weekly, opening `needs-verification` tracking Issues for candidate actions. It degrades gracefully without an API key and **never asserts facts** — see [`docs/AUTOMATION.md`](docs/AUTOMATION.md).
+- **Enforcement registry**: [`data/enforcement_registry.json`](data/enforcement_registry.json) holds deduplicated, verification-pending leads; confirmed items graduate into cited [`case-studies/`](case-studies/) entries.
 - **Quarterly regulatory review**: Standards updates, guidance releases, compliance-checklist refresh.
 - **Annual sector deep-dive**: Rotating focus (energy, AI/tech, infrastructure, extractives).
 

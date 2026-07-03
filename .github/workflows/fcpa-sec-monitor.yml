@@ -1,92 +1,196 @@
 name: ABCF Enforcement Monitor
 
-# Opens a weekly tracking Issue prompting a manual sweep of the primary
-# enforcement sources (DOJ, SEC, SFO, OFAC, BIS) for new ABCF-relevant actions.
-# This is a scaffolding workflow: it structures the review cadence. It does NOT
-# scrape or assert enforcement facts automatically — every logged item must be
-# verified against a primary source by a human contributor before it is treated
-# as fact (see CONTRIBUTING.md).
+# Twice-weekly sweep of primary enforcement sources (DOJ, SEC, SFO) plus an
+# ISO 37001 and regulatory-guidance check.
+#
+# Design notes (this is a CORRECTED, self-consistent version):
+#   * Every referenced script exists under scripts/.
+#   * Uses $GITHUB_OUTPUT (GitHub removed the ``::set-output`` command).
+#   * Degrades gracefully: if ANTHROPIC_API_KEY is absent, the scripts skip AI
+#     extraction and the job still opens a human-sweep tracking issue.
+#   * AI output is NEVER treated as fact — issues carry a verify-first banner and
+#     items are flagged needs_review (see CONTRIBUTING.md).
+#
+# Setup: add an ANTHROPIC_API_KEY secret (Settings > Secrets and variables >
+# Actions) to enable AI triage. Optionally override feeds via repo/environment
+# variables DOJ_FEEDS, SEC_FEEDS, SFO_FEEDS, ISO37001_FEEDS, GUIDANCE_FEEDS.
 
 on:
   schedule:
-    # 07:00 UTC every Monday
-    - cron: "0 7 * * 1"
+    # 08:00 UTC every Monday and Thursday
+    - cron: "0 8 * * 1,4"
   workflow_dispatch: {}
 
 permissions:
+  contents: write
   issues: write
 
+concurrency:
+  group: abcf-enforcement-monitor
+  cancel-in-progress: false
+
 jobs:
-  open-tracking-issue:
+  monitor-enforcement:
     runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
+      DOJ_FEEDS: ${{ vars.DOJ_FEEDS }}
+      SEC_FEEDS: ${{ vars.SEC_FEEDS }}
+      SFO_FEEDS: ${{ vars.SFO_FEEDS }}
+      ISO37001_FEEDS: ${{ vars.ISO37001_FEEDS }}
+      GUIDANCE_FEEDS: ${{ vars.GUIDANCE_FEEDS }}
+    defaults:
+      run:
+        working-directory: .
     steps:
-      - name: Open weekly enforcement-tracking issue
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Monitor DOJ FCPA enforcement
+        run: python scripts/monitor_fcpa_doj.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Monitor SEC FCPA enforcement
+        run: python scripts/monitor_fcpa_sec.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Monitor UK SFO Bribery Act enforcement
+        run: python scripts/monitor_uk_bribery_sfo.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Monitor ISO 37001 updates
+        run: python scripts/monitor_iso37001.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Aggregate enforcement summary
+        id: aggregate
+        run: python scripts/aggregate_enforcement_summary.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Update enforcement registry
+        run: python scripts/update_enforcement_registry.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Create issues for candidate enforcement actions
+        if: steps.aggregate.outputs.has_new_cases == 'true'
         uses: actions/github-script@v7
         with:
           script: |
-            const now = new Date();
-            const iso = now.toISOString().slice(0, 10);
-
-            // ISO week number
-            const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-            const dayNum = (d.getUTCDay() + 6) % 7;
-            d.setUTCDate(d.getUTCDate() - dayNum + 3);
-            const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
-            const week = 1 + Math.round(
-              ((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7
-            );
-            const title = `ABCF enforcement sweep — ${now.getUTCFullYear()}-W${String(week).padStart(2, "0")} (opened ${iso})`;
-
-            const body = [
-              `Automated weekly tracking issue. Review each primary source for new`,
-              `ABCF-relevant activity and record findings below. **Verify every item`,
-              `against its primary source before treating it as fact** (CONTRIBUTING.md).`,
-              ``,
-              `### Sources to sweep`,
-              `- [ ] DOJ — FCPA & Fraud Section press releases (justice.gov/criminal/criminal-fraud)`,
-              `- [ ] SEC — FCPA enforcement actions & administrative orders (sec.gov/enforcement-litigation)`,
-              `- [ ] SFO (UK) — news & DPA announcements (sfo.gov.uk)`,
-              `- [ ] FCA (UK) — enforcement notices (fca.org.uk)`,
-              `- [ ] OFAC — recent designations & enforcement (ofac.treasury.gov)`,
-              `- [ ] BIS — Entity List & export enforcement (bis.gov)`,
-              `- [ ] UAE / DFSA — regulatory notices (dfsa.ae)`,
-              `- [ ] Sectoral: EITI, ICMM, ISO 37001 news`,
-              ``,
-              `### New actions / guidance found`,
-              `| Date | Authority | Entity | Statute / basis | Sector | Amount | Source URL |`,
-              `|------|-----------|--------|-----------------|--------|--------|------------|`,
-              `|      |           |        |                 |        |        |            |`,
-              ``,
-              `### Follow-ups`,
-              `- [ ] Add verified items to the relevant \`case-studies/\` or \`frameworks/\` file`,
-              `- [ ] Update \`risk-tools/\` if a new red-flag pattern emerged`,
-              `- [ ] Note any commonly-misattributed matter in \`case-studies/README.md\``,
-              ``,
-              `_Generated by \`.github/workflows/fcpa-sec-monitor.yml\`._`,
-            ].join("\n");
-
-            const labels = ["enforcement-monitoring", "automated"];
-
-            // Ensure labels exist (ignore errors if they already do).
-            for (const name of labels) {
-              try {
-                await github.rest.issues.getLabel({ ...context.repo, name });
-              } catch (e) {
-                try {
-                  await github.rest.issues.createLabel({
-                    ...context.repo, name,
-                    color: name === "automated" ? "ededed" : "b60205",
-                    description: name === "automated"
-                      ? "Opened by a scheduled workflow"
-                      : "Weekly ABCF enforcement sweep",
-                  });
-                } catch (_) { /* label may have been created concurrently */ }
+            const fs = require('fs');
+            const summary = JSON.parse(fs.readFileSync('enforcement_summary.json', 'utf8'));
+            const banner = '> ⚠️ **AUTO-GENERATED CANDIDATE — NOT VERIFIED.** ' +
+              'Confirm every field against the linked primary source before ' +
+              'treating it as fact (see CONTRIBUTING.md).\n\n';
+            for (const c of (summary.new_cases || [])) {
+              const title = c.defendant
+                ? `[ENFORCEMENT] ${c.defendant} - ${c.agency || 'source'}` +
+                  (c.settlement_date ? ` (${String(c.settlement_date).slice(0,4)})` : '')
+                : `[ENFORCEMENT] candidate from ${c.agency || 'source'} — needs review`;
+              const body = banner +
+                `**Agency:** ${c.agency || 'n/a'}\n` +
+                `**Defendant:** ${c.defendant || 'n/a'}\n` +
+                `**Settlement date:** ${c.settlement_date || 'n/a'}\n` +
+                `**Penalty:** ${c.penalty || 'n/a'}\n` +
+                `**Statute:** ${c.statute || 'n/a'}\n` +
+                `**Sectors:** ${(c.sectors || []).join(', ') || 'n/a'}\n\n` +
+                `**Key facts (unverified):** ${c.key_facts || 'n/a'}\n\n` +
+                `**Source:** ${c.source_url || c.source_title || 'n/a'}\n`;
+              const labels = ['enforcement-monitoring', 'automated', 'needs-verification'];
+              if (c.agency) labels.push(String(c.agency).toLowerCase());
+              for (const name of labels) {
+                try { await github.rest.issues.getLabel({ ...context.repo, name }); }
+                catch (e) {
+                  try { await github.rest.issues.createLabel({ ...context.repo, name, color: 'ededed' }); }
+                  catch (_) {}
+                }
               }
+              await github.rest.issues.create({ ...context.repo, title, body, labels });
             }
 
+      - name: Open weekly human-sweep issue (fallback when nothing auto-found)
+        if: steps.aggregate.outputs.has_new_cases != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const iso = new Date().toISOString().slice(0, 10);
+            const title = `ABCF enforcement sweep — ${iso}`;
+            const body = [
+              'No candidates were auto-extracted this run (no API key, quiet week,',
+              'or feeds unreachable). Do a manual sweep and log verified items via',
+              'the enforcement-tracking issue template.',
+              '',
+              '- [ ] DOJ FCPA / Fraud Section',
+              '- [ ] SEC FCPA actions & orders',
+              '- [ ] SFO / FCA (UK)',
+              '- [ ] OFAC / BIS (convergence)',
+              '- [ ] ISO 37001 / EITI / UNCAC / OECD',
+            ].join('\n');
+            for (const name of ['enforcement-monitoring', 'automated']) {
+              try { await github.rest.issues.getLabel({ ...context.repo, name }); }
+              catch (e) { try { await github.rest.issues.createLabel({ ...context.repo, name, color: 'ededed' }); } catch (_) {} }
+            }
+            await github.rest.issues.create({ ...context.repo, title, body,
+              labels: ['enforcement-monitoring', 'automated'] });
+
+      - name: Commit registry & summary updates
+        run: |
+          git config user.name "abcf-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/enforcement_registry.json ENFORCEMENT_SUMMARY.md 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No registry/summary changes to commit."
+          else
+            git commit -m "chore: automated ABCF enforcement update ($(date -u +%Y-%m-%d))"
+            git push
+          fi
+        working-directory: ${{ github.workspace }}
+
+  guidance-check:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
+      GUIDANCE_FEEDS: ${{ vars.GUIDANCE_FEEDS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Check regulatory guidance
+        id: guidance
+        run: python scripts/check_regulatory_guidance.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Create guidance issue
+        if: steps.guidance.outputs.has_updates == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const updates = JSON.parse(fs.readFileSync('guidance_updates.json', 'utf8'));
+            for (const name of ['guidance', 'regulatory-update']) {
+              try { await github.rest.issues.getLabel({ ...context.repo, name }); }
+              catch (e) { try { await github.rest.issues.createLabel({ ...context.repo, name, color: 'ededed' }); } catch (_) {} }
+            }
             await github.rest.issues.create({
               ...context.repo,
-              title,
-              body,
-              labels,
+              title: `[GUIDANCE] Regulatory sweep — ${new Date().toISOString().slice(0,10)}`,
+              body: updates.summary,
+              labels: ['guidance', 'regulatory-update'],
             });
