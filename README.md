@@ -254,6 +254,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for submission guidelines.
 
 ---
 
+## Maintainer & Contact
+
+Maintained by **Felipe Villasuso Lago** (London South Bank University).
+
+For questions, corrections, suggestions, or collaboration:
+- **GitHub Issues** — use the [templates](.github/ISSUE_TEMPLATE/) for enforcement tracking, framework requests, and case submissions/corrections.
+- **Pull requests** — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Corrections to any figure, date, or statute are especially welcome — accuracy is prioritized over completeness.
+
+---
+
 ## License
 
 Documentation and original analysis in this repository are published under a
