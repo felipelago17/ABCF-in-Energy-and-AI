@@ -1,15 +1,10 @@
 {
   "created": "2026-07-03",
-  "last_updated": "2026-07-03",
+  "last_updated": "2026-07-06T12:08:36.897679+00:00",
   "total_cases": 0,
   "note": "Machine-maintained registry of ABCF enforcement candidates. Items added by the monitor carry needs_review:true until verified against a primary source (see CONTRIBUTING.md). Verified case studies live in case-studies/.",
   "cases": [],
   "summary_stats": {
-    "by_agency": {
-      "doj": 0,
-      "sec": 0,
-      "sfo": 0,
-      "fca": 0
-    }
+    "by_agency": {}
   }
 }
