@@ -127,11 +127,48 @@ def ask_json(client, prompt: str, max_tokens: int = 800):
         return None
 
 
+# Several sources (notably SEC.gov, and Cloudflare-fronted sites like DOJ and
+# SFO) return HTTP 403 to requests without a descriptive User-Agent. SEC's
+# access policy asks for a UA that identifies the caller and a contact. Override
+# via FEED_USER_AGENT.
+DEFAULT_UA = os.environ.get("FEED_USER_AGENT") or (
+    "ABCF-Governance-Monitor/1.0 "
+    "(+https://github.com/felipelago17/ABCF-in-Energy-and-AI; compliance research)"
+)
+
+
+def _fetch_raw(url: str, timeout: int = 25):
+    """Fetch a feed body with a proper User-Agent, or None on failure.
+
+    Uses requests when available (lets us set the UA and a timeout, which is
+    what gets past the 403s); returns None so the caller can fall back.
+    """
+    try:
+        import requests
+    except Exception:
+        return None
+    try:
+        resp = requests.get(
+            url,
+            headers={"User-Agent": DEFAULT_UA, "Accept": "application/rss+xml, application/xml, text/xml, */*"},
+            timeout=timeout,
+        )
+        if resp.status_code != 200:
+            log(f"  feed {url} -> HTTP {resp.status_code}")
+            return None
+        return resp.content
+    except Exception as exc:
+        log(f"  feed {url} fetch error: {exc}")
+        return None
+
+
 def fetch_feed_entries(url: str, days_back: int = 14, limit: int = 60):
     """Fetch recent entries from an RSS/Atom feed, defensively.
 
     Returns a list of dicts; on any error returns an empty list (the workflow
-    must never be broken by a single unreachable feed).
+    must never be broken by a single unreachable feed). Fetches with a
+    descriptive User-Agent first (to get past 403s), falling back to
+    feedparser's own fetch.
     """
     try:
         import feedparser
@@ -140,7 +177,8 @@ def fetch_feed_entries(url: str, days_back: int = 14, limit: int = 60):
         return []
 
     try:
-        feed = feedparser.parse(url)
+        raw = _fetch_raw(url)
+        feed = feedparser.parse(raw if raw is not None else url, agent=DEFAULT_UA)
     except Exception as exc:
         log(f"Error fetching feed {url}: {exc}")
         return []

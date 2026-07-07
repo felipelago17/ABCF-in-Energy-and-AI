@@ -47,6 +47,12 @@ guidance feeds ────────┘        (keyword filter          │  
    should be verified against the source sites. Override any of them with
    repository *variables* (comma-separated):
    `DOJ_FEEDS`, `SEC_FEEDS`, `SFO_FEEDS`, `ISO37001_FEEDS`, `GUIDANCE_FEEDS`.
+5. **User-Agent (usually leave default):** SEC.gov and Cloudflare-fronted sites
+   (DOJ, SFO) return **HTTP 403** to requests without a descriptive
+   `User-Agent`, so the monitor sends one and it is overridable via the
+   `FEED_USER_AGENT` variable. If a run reports feeds returning `HTTP 403` or
+   zero items, adjust this (SEC's access policy expects a UA identifying the
+   caller with a contact) before assuming the URLs are wrong.
 
 ## Design guarantees
 

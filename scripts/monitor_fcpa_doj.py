@@ -15,9 +15,14 @@ import os
 
 from common import run_source_monitor, set_output
 
-# DOJ Office of Public Affairs news feed (override via DOJ_FEEDS if it moves).
+# DOJ press-release feeds. The historic /feeds/opa/justice-news.xml now 404s
+# (DOJ site restructure), so several candidates are tried; the monitor uses
+# whichever returns content and logs the rest. Override via DOJ_FEEDS.
 DEFAULT_FEEDS = [
-    "https://www.justice.gov/feeds/opa/justice-news.xml",
+    "https://www.justice.gov/news/rss?type=press_release",
+    "https://www.justice.gov/feeds/justice-news.xml",
+    "https://www.justice.gov/opa/rss.xml",
+    "https://www.justice.gov/rss.xml",
 ]
 
 

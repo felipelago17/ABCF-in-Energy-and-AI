@@ -1,6 +1,6 @@
 {
   "created": "2026-07-03",
-  "last_updated": "2026-07-07T16:57:51.225740+00:00",
+  "last_updated": "2026-07-07T17:07:57.101724+00:00",
   "total_cases": 0,
   "note": "Machine-maintained registry of ABCF enforcement candidates. Items added by the monitor carry needs_review:true until verified against a primary source (see CONTRIBUTING.md). Verified case studies live in case-studies/.",
   "cases": [],
