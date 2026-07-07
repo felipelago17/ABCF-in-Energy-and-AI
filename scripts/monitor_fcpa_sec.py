@@ -9,10 +9,12 @@ import os
 
 from common import run_source_monitor, set_output
 
-# SEC press releases + litigation releases (override via SEC_FEEDS if they move).
+# SEC press releases feed (verified reachable with a descriptive User-Agent).
+# The older litigation-releases RSS (/rss/litigation/litreleases.xml) now 403s
+# and is dropped; FCPA resolutions are announced via press releases anyway.
+# Override via SEC_FEEDS.
 DEFAULT_FEEDS = [
     "https://www.sec.gov/news/pressreleases.rss",
-    "https://www.sec.gov/rss/litigation/litreleases.xml",
 ]
 
 
