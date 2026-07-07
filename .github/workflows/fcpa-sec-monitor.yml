@@ -35,6 +35,7 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
+      FEED_USER_AGENT: ${{ vars.FEED_USER_AGENT || 'ABCF-Governance-Monitor/1.0 (+https://github.com/felipelago17/ABCF-in-Energy-and-AI; compliance research)' }}
       DOJ_FEEDS: ${{ vars.DOJ_FEEDS }}
       SEC_FEEDS: ${{ vars.SEC_FEEDS }}
       SFO_FEEDS: ${{ vars.SFO_FEEDS }}
@@ -160,6 +161,7 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
+      FEED_USER_AGENT: ${{ vars.FEED_USER_AGENT || 'ABCF-Governance-Monitor/1.0 (+https://github.com/felipelago17/ABCF-in-Energy-and-AI; compliance research)' }}
       GUIDANCE_FEEDS: ${{ vars.GUIDANCE_FEEDS }}
     steps:
       - uses: actions/checkout@v4
