@@ -22,6 +22,11 @@ on:
         description: "Override LLM_PROVIDER for this run (github | gemini | groq | anthropic | none)"
         required: false
         default: ""
+      selftest:
+        description: "Run provider self-test on fixtures (no digest/commit) to verify the LLM works"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   models: read       # GitHub Models access for the built-in GITHUB_TOKEN
@@ -64,6 +69,8 @@ jobs:
 
       - name: Run ABCF daily monitor
         id: monitor
+        env:
+          ABCF_SELFTEST: ${{ github.event.inputs.selftest == 'true' && '1' || '' }}
         run: python scripts/abcf_monitor.py
 
       - name: Open issues for high-relevance alerts

@@ -685,9 +685,67 @@ def main():
     set_output("item_count", len(items))
 
 
+# --------------------------------------------------------------------------- #
+# Self-test (ABCF_SELFTEST=1): exercise the configured provider on fixed
+# fixtures — no feeds, no digest, no commit. Prints each classification so a
+# manual run can confirm the free provider actually works (method == "llm").
+# --------------------------------------------------------------------------- #
+
+SELFTEST_ITEMS = [
+    {
+        "source": "SELFTEST", "agency": "SEC", "link": "https://example.com/loss-avoidance",
+        "title": "Energy company executive sold and hedged shares prior to announcement of disappointing earnings",
+        "summary": ("The SEC alleges an oil & gas company officer sold stock and used a "
+                    "collar to hedge holdings ahead of bad news, avoiding a loss; the "
+                    "complaint pleads Securities Act Section 17(a) and Rule 10b-5."),
+    },
+    {
+        "source": "SELFTEST", "agency": "SEC", "link": "https://example.com/gain-seeking",
+        "title": "AI chip company insider bought call options ahead of positive product announcement",
+        "summary": ("Insider trading charges over purchases of call options in advance of a "
+                    "favorable announcement by a semiconductor / AI compute firm."),
+    },
+    {
+        "source": "SELFTEST", "agency": "DOJ", "link": "https://example.com/fcpa-uae",
+        "title": "Energy firm resolves FCPA bribery case involving payments to Dubai officials",
+        "summary": ("Foreign Corrupt Practices Act resolution; kickbacks to foreign officials "
+                    "in the UAE to win oil contracts abroad."),
+    },
+]
+
+
+def run_selftest(provider):
+    import json as _json
+    log(f"== ABCF SELFTEST · LLM_PROVIDER={provider} ==")
+    terms = load_terms(load_feeds_yaml())
+    provider_tuple = make_llm_client(provider)
+    log(f"LLM client: {'constructed' if provider_tuple else 'none (keyword-only)'}")
+    items = enrich([dict(x) for x in SELFTEST_ITEMS], terms, provider_tuple)
+    for it in items:
+        t = it.get("triage") or {}
+        print("SELFTEST " + _json.dumps(
+            {
+                "title": it["title"][:70], "method": t.get("method"),
+                "category": t.get("category"), "energy": t.get("energy_relevance"),
+                "ai": t.get("ai_relevance"), "fact_pattern": t.get("insider_fact_pattern"),
+                "section_17a": t.get("section_17a"), "uae_gcc": t.get("uae_gcc_nexus"),
+                "extraterritorial": t.get("extraterritorial"), "relevance": t.get("relevance"),
+            },
+            ensure_ascii=False,
+        ))
+    n_llm = sum(1 for it in items if (it.get("triage") or {}).get("method") == "llm")
+    log(f"SELFTEST: {n_llm}/{len(items)} item(s) classified via LLM ({provider}).")
+    set_output("selftest_llm", n_llm)
+    set_output("has_alerts", False)
+    set_output("alert_count", 0)
+
+
 if __name__ == "__main__":
     try:
-        main()
+        if os.environ.get("ABCF_SELFTEST") == "1":
+            run_selftest(get_provider())
+        else:
+            main()
     except Exception as exc:  # never hard-fail the workflow
         log(f"FATAL (soft): {exc}")
         set_output("has_alerts", False)
