@@ -3,28 +3,30 @@ name: ABCF Daily Monitor
 # Daily ABCF regulatory sweep (insider trading + anti-bribery/corruption + fraud)
 # across the Federal Register API, SEC/DOJ/SFO feeds, and law-firm commentary.
 #
-# Design notes:
-#   * Runs scripts/abcf_monitor.py, which degrades gracefully — a missing
-#     ANTHROPIC_API_KEY or an unreachable source never fails the run.
-#   * AI triage output is NEVER treated as fact: digest items and any auto-opened
-#     issues are research leads flagged for verification (see CONTRIBUTING.md).
-#   * NOTE: the requested model id "claude-sonnet-4-6" is not a valid Anthropic
-#     model, so the model is configurable via the ANTHROPIC_MODEL Actions
-#     variable and defaults to the current "claude-sonnet-5".
+# ZERO-COST by default: LLM_PROVIDER=github uses GitHub Models with the built-in
+# GITHUB_TOKEN (needs `permissions: models: read`) — no external API credits and
+# no new secrets. Alternatives: gemini / groq (free tiers, own secret), anthropic
+# (paid), or none (keyword-only). See insider-trading/README.md → "Running for free".
 #
-# Setup: add an ANTHROPIC_API_KEY secret (Settings > Secrets and variables >
-# Actions) to enable AI triage. Optionally override sources via the SEC_FEEDS /
-# DOJ_FEEDS / SFO_FEEDS Actions variables.
+# The monitor degrades gracefully — a missing key/quota (HTTP 429) falls back to
+# keyword-only classification and never fails the run. AI output is NEVER treated
+# as fact (items flagged needs_review; see CONTRIBUTING.md).
 
 on:
   schedule:
     # 04:00 UTC daily == 08:00 Gulf Standard Time (UTC+4).
     - cron: "0 4 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Override LLM_PROVIDER for this run (github | gemini | groq | anthropic | none)"
+        required: false
+        default: ""
 
 permissions:
-  contents: write
-  issues: write
+  models: read       # GitHub Models access for the built-in GITHUB_TOKEN
+  contents: write     # commit the dated digest
+  issues: write       # open abcf-alert issues
 
 concurrency:
   group: abcf-daily-monitor
@@ -34,6 +36,10 @@ jobs:
   daily-monitor:
     runs-on: ubuntu-latest
     env:
+      LLM_PROVIDER: ${{ github.event.inputs.provider || vars.LLM_PROVIDER || 'github' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
       FEED_USER_AGENT: ${{ vars.FEED_USER_AGENT || 'ABCF-Governance-Monitor/1.0 (+https://github.com/felipelago17/ABCF-in-Energy-and-AI; compliance research)' }}
@@ -46,10 +52,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai feedparser requests pyyaml
+          if [ "$LLM_PROVIDER" = "gemini" ]; then
+            pip install google-generativeai
+          fi
 
       - name: Run ABCF daily monitor
         id: monitor
@@ -103,6 +114,7 @@ jobs:
                 `**Source:** ${a.source} (${a.agency || 'n/a'})\n` +
                 `**Category:** ${a.category}\n` +
                 `**Relevance:** ${a.relevance} — energy ${a.energy_relevance}/5, AI ${a.ai_relevance}/5\n` +
+                `**Classified via:** ${a.method}\n` +
                 `**Flags:** ${flags}\n\n` +
                 (bullets ? bullets + '\n\n' : '') +
                 `**Link:** ${a.link || 'n/a'}\n`;
@@ -126,8 +138,8 @@ jobs:
               echo "Pushed digest."
               exit 0
             fi
-            echo "Push rejected (attempt $i) — rebasing on origin/main and retrying."
-            git pull --rebase origin main || true
+            echo "Push rejected (attempt $i) — rebasing on origin/${GITHUB_REF_NAME} and retrying."
+            git pull --rebase origin "${GITHUB_REF_NAME}" || true
           done
           echo "Push failed after retries." >&2
           exit 1
