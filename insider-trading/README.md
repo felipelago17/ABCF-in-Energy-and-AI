@@ -80,8 +80,8 @@ runs every day at **04:00 UTC (08:00 Gulf Standard Time)** and executes
    **SEC** press-release and litigation-release RSS, the **DOJ Fraud
    Section / FCPA** page, **UK SFO** news, and the law-firm feeds in
    [`sources/feeds.yml`](sources/feeds.yml);
-2. triages each item through a **configurable LLM provider** (default: GitHub
-   Models, at zero cost) — classifying it as **anti-bribery/corruption**,
+2. triages each item through a **configurable LLM provider** (default: Groq's
+   free tier, at zero cost) — classifying it as **anti-bribery/corruption**,
    **insider trading**, or **fraud/other**; scoring energy- and AI-sector
    relevance; summarizing it in three bullets with a citation link; flagging
    **extraterritorial reach** or a **UAE/GCC nexus**; tagging insider-trading
@@ -104,17 +104,21 @@ or override a single run via **Run workflow → provider** (workflow_dispatch in
 
 | `LLM_PROVIDER` | Backend / model | Secret needed | Free-tier notes |
 |---|---|---|---|
-| **`github`** (default) | GitHub Models — `gpt-4o-mini` via the OpenAI SDK | **None** — uses the built-in `GITHUB_TOKEN` (requires `permissions: models: read`) | Free for the repo; low daily request/token caps — the keyword pre-filter + batching keep us under them. |
-| `gemini` | Google `gemini-1.5-flash` (`google-generativeai`) | **`GEMINI_API_KEY`** | Google AI Studio free tier (~15 req/min, ~1,500 req/day at time of writing). |
-| `groq` | `llama-3.3-70b-versatile` via the OpenAI SDK | **`GROQ_API_KEY`** | Groq free tier (per-minute/day request + token limits). |
+| **`groq`** (default) | `llama-3.3-70b-versatile` via the OpenAI SDK | **`GROQ_API_KEY`** (free — [console.groq.com](https://console.groq.com)) | Groq free tier: generous per-minute/day request + token limits. |
+| `gemini` | Google `gemini-1.5-flash` (`google-generativeai`) | **`GEMINI_API_KEY`** (free — [aistudio.google.com](https://aistudio.google.com)) | Google AI Studio free tier (~15 req/min, ~1,500 req/day at time of writing). |
+| `github` | GitHub Models — `openai/gpt-4o-mini` via the OpenAI SDK | None (built-in `GITHUB_TOKEN`, `permissions: models: read`) | ⚠️ **Being retired by GitHub** — returns HTTP 410. Kept selectable but no longer usable for LLM triage. |
 | `anthropic` | Claude (`ANTHROPIC_MODEL`, default `claude-sonnet-5`) | **`ANTHROPIC_API_KEY`** | **Paid** — requires Console credits/billing. Kept for later. |
 | `none` | — (keyword-only) | None | Always free; rule-based classification only, no LLM. |
 
 **How to switch:** edit `LLM_PROVIDER` in the workflow `env:` block (or set an
-`LLM_PROVIDER` **Actions variable**, or use the manual-run input). For `gemini` /
-`groq` / `anthropic`, add the corresponding **repository secret** under
-Settings → Secrets and variables → **Actions**. `github` and `none` need **no
-secret at all**.
+`LLM_PROVIDER` **Actions variable**, or use the manual-run input). For `groq` /
+`gemini` / `anthropic`, add the corresponding **repository secret** under
+Settings → Secrets and variables → **Actions**. `none` needs **no secret at all**.
+
+**Verify a provider works:** run the workflow manually with **selftest = true**
+(and the provider of your choice) — it classifies built-in fixtures through the
+provider and logs whether each was handled by the model (`method: llm`) or the
+keyword fallback, without writing a digest.
 
 **Quota safety:** the monitor caps each item's input (title + first 800 chars +
 link), batches up to 10 items per request, and on an **HTTP 429 / quota error**

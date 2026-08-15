@@ -355,7 +355,9 @@ class QuotaError(Exception):
 
 
 def get_provider():
-    return (os.environ.get("LLM_PROVIDER") or "github").strip().lower()
+    # Default groq (free tier). The github/GitHub Models provider is retired
+    # (HTTP 410) but kept selectable via LLM_PROVIDER=github.
+    return (os.environ.get("LLM_PROVIDER") or "groq").strip().lower()
 
 
 def make_llm_client(provider):

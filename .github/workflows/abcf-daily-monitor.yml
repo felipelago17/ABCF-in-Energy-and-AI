@@ -3,10 +3,12 @@ name: ABCF Daily Monitor
 # Daily ABCF regulatory sweep (insider trading + anti-bribery/corruption + fraud)
 # across the Federal Register API, SEC/DOJ/SFO feeds, and law-firm commentary.
 #
-# ZERO-COST by default: LLM_PROVIDER=github uses GitHub Models with the built-in
-# GITHUB_TOKEN (needs `permissions: models: read`) — no external API credits and
-# no new secrets. Alternatives: gemini / groq (free tiers, own secret), anthropic
-# (paid), or none (keyword-only). See insider-trading/README.md → "Running for free".
+# ZERO-COST by default: LLM_PROVIDER=groq uses Groq's free tier
+# (llama-3.3-70b-versatile) via the OpenAI SDK — add a free GROQ_API_KEY secret.
+# Alternatives: gemini (free tier, GEMINI_API_KEY), anthropic (paid), or none
+# (keyword-only, no secret). NOTE: the `github` (GitHub Models) provider is being
+# retired by GitHub (returns HTTP 410) — kept selectable but no longer usable for
+# LLM triage. See insider-trading/README.md → "Running for free".
 #
 # The monitor degrades gracefully — a missing key/quota (HTTP 429) falls back to
 # keyword-only classification and never fails the run. AI output is NEVER treated
@@ -41,7 +43,7 @@ jobs:
   daily-monitor:
     runs-on: ubuntu-latest
     env:
-      LLM_PROVIDER: ${{ github.event.inputs.provider || vars.LLM_PROVIDER || 'github' }}
+      LLM_PROVIDER: ${{ github.event.inputs.provider || vars.LLM_PROVIDER || 'groq' }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
