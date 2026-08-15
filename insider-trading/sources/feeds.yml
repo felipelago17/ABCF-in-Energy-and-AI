@@ -1,0 +1,73 @@
+# Law-firm and commentary feeds polled by the daily ABCF monitor
+# (scripts/abcf_monitor.py). Each entry:
+#
+#   name       Human-readable label shown in the digest.
+#   url        RSS/Atom feed URL.
+#   publisher  Firm / site.
+#   topic      Primary subject (sec-enforcement | fcpa | corp-gov | mixed).
+#   verified   true  = feed URL confirmed reachable/correct.
+#              false = best-effort URL; confirm against the source site and
+#                      correct here if it 404s (the monitor degrades gracefully
+#                      and simply skips an unreachable feed).
+#
+# The WordPress/TypePad feeds (corpgov, CLS Blue Sky, FCPA Blog, Bainbridge)
+# expose standard /feed/ endpoints. The law-firm "series" (MoFo Top 5, Morgan
+# Lewis Roundup, Debevoise FCPA Update, Gibson Dunn FCPA reviews) are published
+# as articles/PDFs on firm insight pages that do not always offer a stable
+# per-series RSS feed — those URLs point at the firm insights feed or landing
+# page and are marked verified:false pending confirmation.
+
+feeds:
+  - name: "MoFo — Top 5 SEC Enforcement Developments"
+    url: "https://www.mofo.com/rss/resources.xml"
+    publisher: "Morrison & Foerster"
+    topic: sec-enforcement
+    verified: false
+
+  - name: "Morgan Lewis — Securities Enforcement Roundup"
+    url: "https://www.morganlewis.com/rss/publications"
+    publisher: "Morgan Lewis"
+    topic: sec-enforcement
+    verified: false
+
+  - name: "Debevoise — FCPA Update"
+    url: "https://www.debevoise.com/insights/publications/rss"
+    publisher: "Debevoise & Plimpton"
+    topic: fcpa
+    verified: false
+
+  - name: "Gibson Dunn — FCPA Reviews"
+    url: "https://www.gibsondunn.com/feed/"
+    publisher: "Gibson Dunn"
+    topic: fcpa
+    verified: false
+
+  - name: "Skadden — Insights"
+    url: "https://www.skadden.com/rss/insights"
+    publisher: "Skadden, Arps"
+    topic: mixed
+    verified: false
+
+  - name: "Harvard Law School Forum on Corporate Governance"
+    url: "https://corpgov.law.harvard.edu/feed/"
+    publisher: "Harvard Law School"
+    topic: corp-gov
+    verified: true
+
+  - name: "CLS Blue Sky Blog"
+    url: "https://clsbluesky.law.columbia.edu/feed/"
+    publisher: "Columbia Law School"
+    topic: corp-gov
+    verified: true
+
+  - name: "FCPA Blog"
+    url: "https://fcpablog.com/feed/"
+    publisher: "FCPA Blog"
+    topic: fcpa
+    verified: true
+
+  - name: "ProfessorBainbridge.com"
+    url: "https://www.professorbainbridge.com/professorbainbridgecom/atom.xml"
+    publisher: "Stephen Bainbridge"
+    topic: corp-gov
+    verified: true

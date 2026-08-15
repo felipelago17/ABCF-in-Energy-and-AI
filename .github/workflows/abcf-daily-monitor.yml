@@ -1,0 +1,123 @@
+name: ABCF Daily Monitor
+
+# Daily ABCF regulatory sweep (insider trading + anti-bribery/corruption + fraud)
+# across the Federal Register API, SEC/DOJ/SFO feeds, and law-firm commentary.
+#
+# Design notes:
+#   * Runs scripts/abcf_monitor.py, which degrades gracefully — a missing
+#     ANTHROPIC_API_KEY or an unreachable source never fails the run.
+#   * AI triage output is NEVER treated as fact: digest items and any auto-opened
+#     issues are research leads flagged for verification (see CONTRIBUTING.md).
+#   * NOTE: the requested model id "claude-sonnet-4-6" is not a valid Anthropic
+#     model, so the model is configurable via the ANTHROPIC_MODEL Actions
+#     variable and defaults to the current "claude-sonnet-5".
+#
+# Setup: add an ANTHROPIC_API_KEY secret (Settings > Secrets and variables >
+# Actions) to enable AI triage. Optionally override sources via the SEC_FEEDS /
+# DOJ_FEEDS / SFO_FEEDS Actions variables.
+
+on:
+  schedule:
+    # 04:00 UTC daily == 08:00 Gulf Standard Time (UTC+4).
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: abcf-daily-monitor
+  cancel-in-progress: false
+
+jobs:
+  daily-monitor:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
+      FEED_USER_AGENT: ${{ vars.FEED_USER_AGENT || 'ABCF-Governance-Monitor/1.0 (+https://github.com/felipelago17/ABCF-in-Energy-and-AI; compliance research)' }}
+      SEC_FEEDS: ${{ vars.SEC_FEEDS }}
+      DOJ_FEEDS: ${{ vars.DOJ_FEEDS }}
+      SFO_FEEDS: ${{ vars.SFO_FEEDS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run ABCF daily monitor
+        id: monitor
+        run: python scripts/abcf_monitor.py
+
+      - name: Open issues for high-relevance alerts
+        if: steps.monitor.outputs.has_alerts == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let payload = { alerts: [] };
+            try { payload = JSON.parse(fs.readFileSync('abcf_daily_alerts.json', 'utf8')); }
+            catch (e) { core.warning('no alerts file: ' + e.message); return; }
+
+            const banner = '> ⚠️ **AUTO-GENERATED RESEARCH LEAD — NOT VERIFIED.** ' +
+              'Confirm every field against the linked primary source before ' +
+              'treating it as fact (see CONTRIBUTING.md).\n\n';
+            const catLabel = {
+              'anti-bribery-corruption': 'anti-bribery-corruption',
+              'insider-trading': 'insider-trading',
+              'fraud-other': 'fraud',
+            };
+
+            async function ensureLabel(name, color) {
+              try { await github.rest.issues.getLabel({ ...context.repo, name }); }
+              catch (e) {
+                try { await github.rest.issues.createLabel({ ...context.repo, name, color }); }
+                catch (_) {}
+              }
+            }
+
+            for (const a of (payload.alerts || [])) {
+              const cat = catLabel[a.category] || 'fraud';
+              const labels = ['abcf-alert', cat];
+              if (a.insider_fact_pattern) labels.push(a.insider_fact_pattern);
+              if (a.uae_gcc_nexus) labels.push('uae-gcc-nexus');
+              if (a.section_17a) labels.push('section-17a');
+              for (const name of labels) await ensureLabel(name, 'b60205');
+
+              const bullets = (a.bullets || []).map(b => `- ${b}`).join('\n');
+              const flags = [
+                a.extraterritorial ? 'extraterritorial' : null,
+                a.uae_gcc_nexus ? 'UAE/GCC nexus' : null,
+                a.insider_fact_pattern ? `pattern: ${a.insider_fact_pattern}` : null,
+                a.section_17a ? '§17(a) theory' : null,
+              ].filter(Boolean).join(' · ') || 'none';
+
+              const title = `[ABCF-ALERT] ${a.title}`.slice(0, 240);
+              const body = banner +
+                `**Source:** ${a.source} (${a.agency || 'n/a'})\n` +
+                `**Category:** ${a.category}\n` +
+                `**Relevance:** ${a.relevance} — energy ${a.energy_relevance}/5, AI ${a.ai_relevance}/5\n` +
+                `**Flags:** ${flags}\n\n` +
+                (bullets ? bullets + '\n\n' : '') +
+                `**Link:** ${a.link || 'n/a'}\n`;
+
+              await github.rest.issues.create({ ...context.repo, title, body, labels });
+            }
+
+      - name: Commit dated digest
+        run: |
+          git config user.name "abcf-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add insider-trading/digests/*.md 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No digest changes to commit."
+          else
+            git commit -m "chore: ABCF daily digest ($(date -u +%Y-%m-%d))"
+            git push
+          fi
