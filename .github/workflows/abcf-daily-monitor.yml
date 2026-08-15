@@ -117,7 +117,17 @@ jobs:
           git add insider-trading/digests/*.md 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No digest changes to commit."
-          else
-            git commit -m "chore: ABCF daily digest ($(date -u +%Y-%m-%d))"
-            git push
+            exit 0
           fi
+          git commit -m "chore: ABCF daily digest ($(date -u +%Y-%m-%d))"
+          # Retry with rebase to survive a concurrent push to the same branch.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed digest."
+              exit 0
+            fi
+            echo "Push rejected (attempt $i) — rebasing on origin/main and retrying."
+            git pull --rebase origin main || true
+          done
+          echo "Push failed after retries." >&2
+          exit 1

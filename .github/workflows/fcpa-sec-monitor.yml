@@ -148,10 +148,20 @@ jobs:
           git add data/enforcement_registry.json ENFORCEMENT_SUMMARY.md 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No registry/summary changes to commit."
-          else
-            git commit -m "chore: automated ABCF enforcement update ($(date -u +%Y-%m-%d))"
-            git push
+            exit 0
           fi
+          git commit -m "chore: automated ABCF enforcement update ($(date -u +%Y-%m-%d))"
+          # Retry with rebase to survive a concurrent push to the same branch.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed update."
+              exit 0
+            fi
+            echo "Push rejected (attempt $i) — rebasing on origin/main and retrying."
+            git pull --rebase origin main || true
+          done
+          echo "Push failed after retries." >&2
+          exit 1
         working-directory: ${{ github.workspace }}
 
   guidance-check:
