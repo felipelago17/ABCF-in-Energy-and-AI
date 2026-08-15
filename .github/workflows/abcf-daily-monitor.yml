@@ -133,20 +133,33 @@ jobs:
         run: |
           git config user.name "abcf-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          DFILE="insider-trading/digests/$(date -u +%Y-%m-%d).md"
           git add insider-trading/digests/*.md 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No digest changes to commit."
             exit 0
           fi
+          # Preserve this run's digest, then commit last-writer-wins. On a
+          # concurrent push (incl. another run writing the same dated file), sync
+          # HARD to the remote tip and re-lay our digest on top — no merge
+          # conflicts, and unrelated remote changes are kept.
+          tmp="$(mktemp)"; cp "$DFILE" "$tmp"
           git commit -m "chore: ABCF daily digest ($(date -u +%Y-%m-%d))"
-          # Retry with rebase to survive a concurrent push to the same branch.
           for i in 1 2 3 4 5; do
             if git push; then
               echo "Pushed digest."
               exit 0
             fi
-            echo "Push rejected (attempt $i) — rebasing on origin/${GITHUB_REF_NAME} and retrying."
-            git pull --rebase origin "${GITHUB_REF_NAME}" || true
+            echo "Push rejected (attempt $i) — syncing to remote and reapplying digest."
+            git fetch origin "${GITHUB_REF_NAME}" || true
+            git reset --hard "origin/${GITHUB_REF_NAME}" || true
+            mkdir -p insider-trading/digests
+            cp "$tmp" "$DFILE"
+            git add "$DFILE"
+            git commit -m "chore: ABCF daily digest ($(date -u +%Y-%m-%d))" 2>/dev/null || {
+              echo "Digest already current on remote."
+              git push && exit 0
+            }
           done
           echo "Push failed after retries." >&2
           exit 1
