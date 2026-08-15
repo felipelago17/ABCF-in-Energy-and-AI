@@ -17,6 +17,24 @@
 # per-series RSS feed — those URLs point at the firm insights feed or landing
 # page and are marked verified:false pending confirmation.
 
+# ABCF search terms — single source of truth used BOTH for the Federal Register
+# query and for the keyword pre-filter that gates LLM calls (scripts/abcf_monitor.py).
+terms:
+  - insider trading
+  - 10b5-1
+  - Section 16
+  - FCPA
+  - anti-bribery
+  - bribery
+  - corruption
+  - kickback
+  - loss avoidance
+  - disgorgement
+  - Section 17(a)
+  - 17(a)
+  - material non-public
+  - misappropriation
+
 feeds:
   - name: "MoFo — Top 5 SEC Enforcement Developments"
     url: "https://www.mofo.com/rss/resources.xml"

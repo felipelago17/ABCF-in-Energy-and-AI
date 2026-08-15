@@ -80,8 +80,8 @@ runs every day at **04:00 UTC (08:00 Gulf Standard Time)** and executes
    **SEC** press-release and litigation-release RSS, the **DOJ Fraud
    Section / FCPA** page, **UK SFO** news, and the law-firm feeds in
    [`sources/feeds.yml`](sources/feeds.yml);
-2. triages each item through the Anthropic API (model configurable via
-   `ANTHROPIC_MODEL`) — classifying it as **anti-bribery/corruption**,
+2. triages each item through a **configurable LLM provider** (default: Groq's
+   free tier, at zero cost) — classifying it as **anti-bribery/corruption**,
    **insider trading**, or **fraud/other**; scoring energy- and AI-sector
    relevance; summarizing it in three bullets with a citation link; flagging
    **extraterritorial reach** or a **UAE/GCC nexus**; tagging insider-trading
@@ -90,10 +90,38 @@ runs every day at **04:00 UTC (08:00 Gulf Standard Time)** and executes
 3. writes a dated digest to [`digests/`](digests/); and
 4. opens a GitHub issue labeled **`abcf-alert`** for any high-relevance item.
 
-### Setup
+A **keyword pre-filter** (the `terms:` list in [`sources/feeds.yml`](sources/feeds.yml))
+gates the LLM: only matched items are sent to the model, in batches, so free-tier
+quotas last. Every item also gets a **keyword-only baseline** classification, so a
+digest is produced even with no model at all.
 
-Add an **`ANTHROPIC_API_KEY`** repository secret (Settings → Secrets and
-variables → **Actions**) to enable AI triage. Without it the monitor still runs
-and writes a digest of raw items flagged for manual review — it never fabricates
-classifications. The model defaults to `claude-sonnet-5` and is overridable with
-the `ANTHROPIC_MODEL` Actions variable.
+## Running for free
+
+The monitor is **zero-cost by default**. Pick a provider with the `LLM_PROVIDER`
+env var in the workflow's `env:` block
+([`.github/workflows/abcf-daily-monitor.yml`](../.github/workflows/abcf-daily-monitor.yml)),
+or override a single run via **Run workflow → provider** (workflow_dispatch input).
+
+| `LLM_PROVIDER` | Backend / model | Secret needed | Free-tier notes |
+|---|---|---|---|
+| **`groq`** (default) | `llama-3.3-70b-versatile` via the OpenAI SDK | **`GROQ_API_KEY`** (free — [console.groq.com](https://console.groq.com)) | Groq free tier: generous per-minute/day request + token limits. |
+| `gemini` | Google `gemini-1.5-flash` (`google-generativeai`) | **`GEMINI_API_KEY`** (free — [aistudio.google.com](https://aistudio.google.com)) | Google AI Studio free tier (~15 req/min, ~1,500 req/day at time of writing). |
+| `github` | GitHub Models — `openai/gpt-4o-mini` via the OpenAI SDK | None (built-in `GITHUB_TOKEN`, `permissions: models: read`) | ⚠️ **Being retired by GitHub** — returns HTTP 410. Kept selectable but no longer usable for LLM triage. |
+| `anthropic` | Claude (`ANTHROPIC_MODEL`, default `claude-sonnet-5`) | **`ANTHROPIC_API_KEY`** | **Paid** — requires Console credits/billing. Kept for later. |
+| `none` | — (keyword-only) | None | Always free; rule-based classification only, no LLM. |
+
+**How to switch:** edit `LLM_PROVIDER` in the workflow `env:` block (or set an
+`LLM_PROVIDER` **Actions variable**, or use the manual-run input). For `groq` /
+`gemini` / `anthropic`, add the corresponding **repository secret** under
+Settings → Secrets and variables → **Actions**. `none` needs **no secret at all**.
+
+**Verify a provider works:** run the workflow manually with **selftest = true**
+(and the provider of your choice) — it classifies built-in fixtures through the
+provider and logs whether each was handled by the model (`method: llm`) or the
+keyword fallback, without writing a digest.
+
+**Quota safety:** the monitor caps each item's input (title + first 800 chars +
+link), batches up to 10 items per request, and on an **HTTP 429 / quota error**
+logs it and falls back to keyword-only classification for the rest of the run —
+it never fails the workflow. Free-tier limits change over time; check each
+provider's current limits if runs start getting throttled.

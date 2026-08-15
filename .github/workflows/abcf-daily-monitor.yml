@@ -3,28 +3,37 @@ name: ABCF Daily Monitor
 # Daily ABCF regulatory sweep (insider trading + anti-bribery/corruption + fraud)
 # across the Federal Register API, SEC/DOJ/SFO feeds, and law-firm commentary.
 #
-# Design notes:
-#   * Runs scripts/abcf_monitor.py, which degrades gracefully — a missing
-#     ANTHROPIC_API_KEY or an unreachable source never fails the run.
-#   * AI triage output is NEVER treated as fact: digest items and any auto-opened
-#     issues are research leads flagged for verification (see CONTRIBUTING.md).
-#   * NOTE: the requested model id "claude-sonnet-4-6" is not a valid Anthropic
-#     model, so the model is configurable via the ANTHROPIC_MODEL Actions
-#     variable and defaults to the current "claude-sonnet-5".
+# ZERO-COST by default: LLM_PROVIDER=groq uses Groq's free tier
+# (llama-3.3-70b-versatile) via the OpenAI SDK — add a free GROQ_API_KEY secret.
+# Alternatives: gemini (free tier, GEMINI_API_KEY), anthropic (paid), or none
+# (keyword-only, no secret). NOTE: the `github` (GitHub Models) provider is being
+# retired by GitHub (returns HTTP 410) — kept selectable but no longer usable for
+# LLM triage. See insider-trading/README.md → "Running for free".
 #
-# Setup: add an ANTHROPIC_API_KEY secret (Settings > Secrets and variables >
-# Actions) to enable AI triage. Optionally override sources via the SEC_FEEDS /
-# DOJ_FEEDS / SFO_FEEDS Actions variables.
+# The monitor degrades gracefully — a missing key/quota (HTTP 429) falls back to
+# keyword-only classification and never fails the run. AI output is NEVER treated
+# as fact (items flagged needs_review; see CONTRIBUTING.md).
 
 on:
   schedule:
     # 04:00 UTC daily == 08:00 Gulf Standard Time (UTC+4).
     - cron: "0 4 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Override LLM_PROVIDER for this run (github | gemini | groq | anthropic | none)"
+        required: false
+        default: ""
+      selftest:
+        description: "Run provider self-test on fixtures (no digest/commit) to verify the LLM works"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
-  contents: write
-  issues: write
+  models: read       # GitHub Models access for the built-in GITHUB_TOKEN
+  contents: write     # commit the dated digest
+  issues: write       # open abcf-alert issues
 
 concurrency:
   group: abcf-daily-monitor
@@ -34,6 +43,10 @@ jobs:
   daily-monitor:
     runs-on: ubuntu-latest
     env:
+      LLM_PROVIDER: ${{ github.event.inputs.provider || vars.LLM_PROVIDER || 'groq' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
       FEED_USER_AGENT: ${{ vars.FEED_USER_AGENT || 'ABCF-Governance-Monitor/1.0 (+https://github.com/felipelago17/ABCF-in-Energy-and-AI; compliance research)' }}
@@ -46,13 +59,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai feedparser requests pyyaml
+          if [ "$LLM_PROVIDER" = "gemini" ]; then
+            pip install google-generativeai
+          fi
 
       - name: Run ABCF daily monitor
         id: monitor
+        env:
+          ABCF_SELFTEST: ${{ github.event.inputs.selftest == 'true' && '1' || '' }}
         run: python scripts/abcf_monitor.py
 
       - name: Open issues for high-relevance alerts
@@ -103,6 +123,7 @@ jobs:
                 `**Source:** ${a.source} (${a.agency || 'n/a'})\n` +
                 `**Category:** ${a.category}\n` +
                 `**Relevance:** ${a.relevance} — energy ${a.energy_relevance}/5, AI ${a.ai_relevance}/5\n` +
+                `**Classified via:** ${a.method}\n` +
                 `**Flags:** ${flags}\n\n` +
                 (bullets ? bullets + '\n\n' : '') +
                 `**Link:** ${a.link || 'n/a'}\n`;
@@ -114,20 +135,33 @@ jobs:
         run: |
           git config user.name "abcf-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          DFILE="insider-trading/digests/$(date -u +%Y-%m-%d).md"
           git add insider-trading/digests/*.md 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No digest changes to commit."
             exit 0
           fi
+          # Preserve this run's digest, then commit last-writer-wins. On a
+          # concurrent push (incl. another run writing the same dated file), sync
+          # HARD to the remote tip and re-lay our digest on top — no merge
+          # conflicts, and unrelated remote changes are kept.
+          tmp="$(mktemp)"; cp "$DFILE" "$tmp"
           git commit -m "chore: ABCF daily digest ($(date -u +%Y-%m-%d))"
-          # Retry with rebase to survive a concurrent push to the same branch.
           for i in 1 2 3 4 5; do
             if git push; then
               echo "Pushed digest."
               exit 0
             fi
-            echo "Push rejected (attempt $i) — rebasing on origin/main and retrying."
-            git pull --rebase origin main || true
+            echo "Push rejected (attempt $i) — syncing to remote and reapplying digest."
+            git fetch origin "${GITHUB_REF_NAME}" || true
+            git reset --hard "origin/${GITHUB_REF_NAME}" || true
+            mkdir -p insider-trading/digests
+            cp "$tmp" "$DFILE"
+            git add "$DFILE"
+            git commit -m "chore: ABCF daily digest ($(date -u +%Y-%m-%d))" 2>/dev/null || {
+              echo "Digest already current on remote."
+              git push && exit 0
+            }
           done
           echo "Push failed after retries." >&2
           exit 1
