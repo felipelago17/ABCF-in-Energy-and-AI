@@ -373,7 +373,11 @@ def make_llm_client(provider):
         except Exception as exc:
             log(f"openai SDK unavailable ({exc}) — keyword-only fallback.")
             return None
-        return ("openai", OpenAI(base_url="https://models.inference.ai.azure.com", api_key=token), "gpt-4o-mini")
+        # GitHub Models GA endpoint + namespaced model id. (The old preview
+        # endpoint models.inference.ai.azure.com now 404s.) Both overridable.
+        base_url = os.environ.get("GITHUB_MODELS_BASE_URL", "https://models.github.ai/inference")
+        model = os.environ.get("GITHUB_MODEL", "openai/gpt-4o-mini")
+        return ("openai", OpenAI(base_url=base_url, api_key=token), model)
     if provider == "groq":
         key = os.environ.get("GROQ_API_KEY")
         if not key:
