@@ -106,14 +106,17 @@ or override a single run via **Run workflow → provider** (workflow_dispatch in
 |---|---|---|---|
 | **`groq`** (default) | `llama-3.3-70b-versatile` via the OpenAI SDK | **`GROQ_API_KEY`** (free — [console.groq.com](https://console.groq.com)) | Groq free tier: generous per-minute/day request + token limits. |
 | `gemini` | Google `gemini-1.5-flash` (`google-generativeai`) | **`GEMINI_API_KEY`** (free — [aistudio.google.com](https://aistudio.google.com)) | Google AI Studio free tier (~15 req/min, ~1,500 req/day at time of writing). |
+| `ollama` | Local models via Ollama's OpenAI-compatible endpoint (default `llama3.1`) | **None** | **Free & local.** Needs a reachable Ollama server — a local machine or **self-hosted runner**; *not* available on GitHub-hosted runners by default. Set `OLLAMA_BASE_URL` / `OLLAMA_MODEL` to point elsewhere. |
+| `grok` | xAI `grok-2-latest` via the OpenAI SDK | **`XAI_API_KEY`** | **Paid** (xAI API — [console.x.ai](https://console.x.ai)). Override model via the `XAI_MODEL` variable. |
 | `github` | GitHub Models — `openai/gpt-4o-mini` via the OpenAI SDK | None (built-in `GITHUB_TOKEN`, `permissions: models: read`) | ⚠️ **Being retired by GitHub** — returns HTTP 410. Kept selectable but no longer usable for LLM triage. |
 | `anthropic` | Claude (`ANTHROPIC_MODEL`, default `claude-sonnet-5`) | **`ANTHROPIC_API_KEY`** | **Paid** — requires Console credits/billing. Kept for later. |
 | `none` | — (keyword-only) | None | Always free; rule-based classification only, no LLM. |
 
 **How to switch:** edit `LLM_PROVIDER` in the workflow `env:` block (or set an
 `LLM_PROVIDER` **Actions variable**, or use the manual-run input). For `groq` /
-`gemini` / `anthropic`, add the corresponding **repository secret** under
-Settings → Secrets and variables → **Actions**. `none` needs **no secret at all**.
+`gemini` / `grok` / `anthropic`, add the corresponding **repository secret** under
+Settings → Secrets and variables → **Actions**. `ollama` and `none` need **no
+secret at all** (`ollama` needs a reachable server instead).
 
 **Verify a provider works:** run the workflow manually with **selftest = true**
 (and the provider of your choice) — it classifies built-in fixtures through the
