@@ -403,6 +403,33 @@ def make_llm_client(provider):
             return None
         genai.configure(api_key=key)
         return ("gemini", genai.GenerativeModel("gemini-1.5-flash"), "gemini-1.5-flash")
+    if provider == "grok":
+        key = os.environ.get("XAI_API_KEY")
+        if not key:
+            log("XAI_API_KEY not set — keyword-only fallback.")
+            return None
+        try:
+            from openai import OpenAI
+        except Exception as exc:
+            log(f"openai SDK unavailable ({exc}) — keyword-only fallback.")
+            return None
+        # xAI Grok is OpenAI-compatible. Paid API. Model/base overridable.
+        base_url = os.environ.get("XAI_BASE_URL") or "https://api.x.ai/v1"
+        model = os.environ.get("XAI_MODEL") or "grok-2-latest"
+        return ("openai", OpenAI(base_url=base_url, api_key=key), model)
+    if provider == "ollama":
+        try:
+            from openai import OpenAI
+        except Exception as exc:
+            log(f"openai SDK unavailable ({exc}) — keyword-only fallback.")
+            return None
+        # Local models via Ollama's OpenAI-compatible endpoint — free, no key.
+        # Needs a reachable Ollama server (local machine / self-hosted runner);
+        # not present on GitHub-hosted runners unless OLLAMA_BASE_URL points at one.
+        base_url = os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434/v1"
+        model = os.environ.get("OLLAMA_MODEL") or "llama3.1"
+        key = os.environ.get("OLLAMA_API_KEY") or "ollama"  # dummy; Ollama ignores it
+        return ("openai", OpenAI(base_url=base_url, api_key=key), model)
     if provider == "anthropic":
         from common import get_client
         client = get_client()

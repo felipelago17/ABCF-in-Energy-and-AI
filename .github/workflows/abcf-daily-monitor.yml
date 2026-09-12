@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       provider:
-        description: "Override LLM_PROVIDER for this run (github | gemini | groq | anthropic | none)"
+        description: "Override LLM_PROVIDER (groq | gemini | grok | ollama | github | anthropic | none)"
         required: false
         default: ""
       selftest:
@@ -47,6 +47,10 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      XAI_MODEL: ${{ vars.XAI_MODEL }}
+      OLLAMA_BASE_URL: ${{ vars.OLLAMA_BASE_URL }}
+      OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5' }}
       FEED_USER_AGENT: ${{ vars.FEED_USER_AGENT || 'ABCF-Governance-Monitor/1.0 (+https://github.com/felipelago17/ABCF-in-Energy-and-AI; compliance research)' }}
