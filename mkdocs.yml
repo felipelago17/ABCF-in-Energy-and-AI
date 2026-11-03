@@ -1,0 +1,44 @@
+site_name: ABCF in Energy and AI
+site_description: Legal, regulatory, and institutional frameworks for anti-bribery, corruption, and fraud prevention across energy and frontier AI sectors.
+site_author: Felipe Villasuso Lago
+site_url: https://felipelago17.github.io/ABCF-in-Energy-and-AI/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Automation: AUTOMATION.md
+
+plugins:
+  - search
