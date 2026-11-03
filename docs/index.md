@@ -4,11 +4,6 @@ Repository synthesizing legal, regulatory, and institutional frameworks for anti
 
 ## Overview
 
-This resource combines:
-
-- Regulatory intelligence (FCPA, UK Bribery Act, ISO 37001, etc.)
-- Institutional analysis
-- Practical frameworks for risk assessment
-- Sector focus on energy and AI/compute infrastructure
+This resource combines regulatory intelligence, institutional analysis, and practical frameworks focused on energy and AI/compute infrastructure.
 
 > **Disclaimer**: This material is for informational and academic purposes only and does not constitute legal advice.
