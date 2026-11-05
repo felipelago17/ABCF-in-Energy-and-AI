@@ -1,6 +1,6 @@
 # ABCF Enforcement Summary
 
-**Generated:** 2026-11-02T18:01:25.541695+00:00
+**Generated:** 2026-11-05T16:18:07.323482+00:00
 
 > ⚠️ Auto-generated from AI-extracted candidates. **Every item must be verified against its primary source before it is treated as fact** (see CONTRIBUTING.md).
 
