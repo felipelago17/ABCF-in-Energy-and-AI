@@ -4,11 +4,11 @@ This repository includes an optional, self-contained automation pipeline that
 sweeps primary enforcement sources on a schedule and turns candidates into
 GitHub Issues for human verification. It is **assistive, not authoritative** —
 consistent with the repository's rule that every item is verified against a
-primary source before it is treated as fact (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
+primary source before it is treated as fact (see [CONTRIBUTING.md](https://github.com/felipelago17/ABCF-in-Energy-and-AI/blob/main/CONTRIBUTING.md)).
 
 ## What it does
 
-Workflow: [`.github/workflows/fcpa-sec-monitor.yml`](../.github/workflows/fcpa-sec-monitor.yml)
+Workflow: [`.github/workflows/fcpa-sec-monitor.yml`](https://github.com/felipelago17/ABCF-in-Energy-and-AI/blob/main/.github/workflows/fcpa-sec-monitor.yml)
 (runs Mondays & Thursdays 08:00 UTC, or on demand via **Actions → Run workflow**).
 
 ```
@@ -87,4 +87,4 @@ and git-ignored; only `data/enforcement_registry.json` and
 The registry holds **unverified leads**. Once a human confirms an item against
 its primary source, it graduates into a proper, cited entry under
 [`case-studies/`](../case-studies/) — with the misattribution discipline
-described in [`case-studies/README.md`](../case-studies/README.md).
+described in [`case-studies/README.md`](https://github.com/felipelago17/ABCF-in-Energy-and-AI/blob/main/case-studies/README.md).
